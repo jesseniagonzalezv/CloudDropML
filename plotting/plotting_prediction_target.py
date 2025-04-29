@@ -181,7 +181,126 @@ def histogram_plot2d(metrics, ds_model1, name_model, target_name, prediction_nam
     cb.ax.tick_params(labelsize=axes_font_size)
 
 
+
 def comparison_target_predict(i, ds_model1, name_model, target_name, prediction_name,
+                              axes, fig, title_units, cmap_img='Spectral'):
+    """
+    ds_model1: ideally NN
+    """
+
+    fig = fig
+    axli = axes
+
+    _, result_rmse_m1, result_score_m1, _ = metric_evaluation(ds_model1[target_name][i].values.flatten(),
+                                                              ds_model1[prediction_name][i].values.flatten())
+
+    vmin, vmax, vmean = min_max_mean([ds_model1[target_name], ds_model1[prediction_name]])
+    vmax_99 = np.nanpercentile(ds_model1[target_name][i].values.flatten(), 99)
+
+    print(f"\n--------------Maximun range used: {vmax_99} -------------------------- ")
+
+    titles_font_size = 23
+    axes_font_size = 19.5
+
+    cmap1 = cm.get_cmap(cmap_img)
+    cmap1.set_bad(color='lightgray')  # NaN light gray color 
+
+    cmap2 = cm.get_cmap('RdBu')
+    cmap2.set_bad(color='lightgray')  # NaN light gray color 
+
+
+    ax_idx = 0
+    im = ds_model1[target_name][i].plot(ax=axli[ax_idx], cmap=cmap1, vmin=vmin, vmax=vmax_99, add_colorbar=False)
+
+    im.set_rasterized(True)  
+
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.BORDERS, color='black', linewidth=1)
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.COASTLINE, color='black', linewidth=1)
+
+    # ------------------- X axis ------------------------------
+    gl = axli[ax_idx].gridlines(draw_labels=True, crs=ccrs.PlateCarree())
+    gl.xlabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.ylabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.xformatter = cticker.LongitudeFormatter()
+    gl.yformatter = cticker.LatitudeFormatter()
+
+    
+    axli[ax_idx].set_xlabel('')
+    axli[ax_idx].set_ylabel(title_units, fontsize=titles_font_size)
+    axli[ax_idx].set_title("ICON-LES", fontsize=titles_font_size)
+
+    
+    ax_idx = 1
+
+    im = ds_model1[prediction_name][i].plot(ax=axli[ax_idx], cmap=cmap1, vmin=vmin, vmax=vmax_99,
+                                            add_colorbar=False)  # cbar_kwargs={"label":"model1_RF / K"})
+    
+    im.set_rasterized(True)  
+
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.BORDERS, color='black', linewidth=1)
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.COASTLINE, color='black', linewidth=1)
+    # ------------------- X axis ------------------------------
+    gl = axli[ax_idx].gridlines(draw_labels=True, crs=ccrs.PlateCarree())
+    gl.xlabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.ylabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.left_labels = False
+    gl.xformatter = cticker.LongitudeFormatter()
+    gl.yformatter = cticker.LatitudeFormatter()
+
+
+    axli[ax_idx].set_xlabel('')
+    axli[ax_idx].set_ylabel('')
+    axli[ax_idx].set_title(f"{name_model} Prediction", fontsize=titles_font_size)
+
+    cbar = fig.colorbar(im, ax=axli[ax_idx], location='right', fraction=0.037, pad=0.05)
+    cbar.ax.tick_params(labelsize=axes_font_size - 4)
+
+    ax_idx = 2
+    percentage_diff = 100 * ((ds_model1[target_name][i] - ds_model1[prediction_name][i]) / (ds_model1[target_name][i]))
+    
+    min_target = ds_model1[target_name][i].min().item()
+    max_target = ds_model1[target_name][i].max().item()
+    min_prediction = ds_model1[prediction_name][i].min().item()
+    max_prediction = ds_model1[prediction_name][i].max().item()
+
+    print(f"Min Target: {min_target}, Max Target: {max_target}")
+    print(f"Min Prediction: {min_prediction}, Max Prediction: {max_prediction}")
+
+
+    # Normalize around zero
+    norm = TwoSlopeNorm(vmin=-40, vcenter=0, vmax=40)
+    #                                norm=norm, shading='auto')
+    plot = axli[ax_idx].pcolormesh(percentage_diff['lon'], percentage_diff['lat'], percentage_diff, cmap=cmap2,
+                                   vmin=-40, vmax=40, shading='auto')
+    plot.set_rasterized(True)  
+
+    cbar2 = fig.colorbar(plot, ax=axli[ax_idx], location='right', fraction=0.037, pad=0.05)
+
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.BORDERS, color='black', linewidth=1)
+    axli[ax_idx].add_feature(ccrs.cartopy.feature.COASTLINE, color='black', linewidth=1)
+
+  
+    gl = axli[ax_idx].gridlines(draw_labels=True, crs=ccrs.PlateCarree())
+    gl.xlabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.ylabel_style = {'size': axes_font_size, 'color': 'black'}
+    gl.top_labels = False
+    gl.right_labels = False
+    gl.left_labels = False
+    gl.xformatter = cticker.LongitudeFormatter()
+    gl.yformatter = cticker.LatitudeFormatter()
+
+    formatter = FuncFormatter(lambda x, pos: f'{x:.0f}%')
+    cbar2.ax.xaxis.set_major_formatter(formatter)
+    cbar2.ax.tick_params(labelsize=axes_font_size - 4)
+    axli[ax_idx].set_title("\n % Difference", fontsize=titles_font_size)
+
+
+
+def old_comparison_target_predict(i, ds_model1, name_model, target_name, prediction_name,
                               axes, fig, title_units, cmap_img='Spectral'):
     """
     ds_model1: ideally NN
@@ -252,7 +371,7 @@ def comparison_target_predict(i, ds_model1, name_model, target_name, prediction_
     cbar.ax.tick_params(labelsize=axes_font_size - 4)
 
     ax_idx = 2
-    percentage_diff = 100 * ((ds_model1[prediction_name][i] - ds_model1[target_name][i]) / (ds_model1[target_name][i]))
+    percentage_diff = 100 * ((ds_model1[target_name][i] - ds_model1[prediction_name][i]) / (ds_model1[target_name][i]))
     
     min_target = ds_model1[target_name][i].min().item()
     max_target = ds_model1[target_name][i].max().item()
