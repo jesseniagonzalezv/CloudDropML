@@ -13,18 +13,18 @@ The folder "modis_prediction"  implements the use of the ML model with MODIS lev
  
 <figure>
   <figcaption>Overview of the thermodynamic variables used for the ML models based on ICON-LES data and simulated MODIS. </figcaption>
-  <img src="img/table_ml_lwp_nd" alt="table_ml_lwp_nd" width="75%">
+  <img src="img/table_ml_lwp_nd.png" alt="table_ml_lwp_nd" width="75%">
 </figure>
 
 <figure>
   <figcaption>Overview of diagram ML models based with inputs simulated MODIS and output ICON-LES data. </figcaption>
-  <img src="img/diagrama_channels" alt="diagrama_channels" width="75%">
+  <img src="img/diagrama_channels.png" alt="diagrama_channels" width="75%">
 </figure>
 
 1. modis_prediction
 <figure>
   <figcaption>Overview of diagram using MODIS data with inputs MODIS and the trained ML (previous step).  </figcaption>
-  <img src="img/block5" alt="block5" width="75%">
+  <img src="img/block5.png" alt="block5" width="75%">
 </figure>
 
  
