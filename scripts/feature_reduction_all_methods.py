@@ -424,7 +424,8 @@ def main():
 
     elif type_model == "XGBoost":
 
-        model = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05)
+        # model = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05)
+        model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.05)
 
         results = evaluate_model_by_features_RFE(model=model,
                                              df_x_train=df_x_train,

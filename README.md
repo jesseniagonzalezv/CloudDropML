@@ -3,46 +3,83 @@
 
 This project implements both standard statistical methods and machine learning (ML) methods for data analysis and prediction. The pipeline is divided into two main sections:
 
-    main_folder/
-    ├── dataframe_all_data.sh              
-    ├── correlation_joinplot.sh                  
-    ├── partial_corr.sh                  
-    ├── train_predict_plot.sh              
-    ├── NN_feature_importances.sh              
-    ├── RF_feature_importances.sh              
-    ├── feature_reduction_all_methods.sh              
-    ├── plots_results.sh              
-    ├── predict_plot_sample.sh              
-    ├── README.md               
+    training_ml_models/
+        ├── dataframe_all_data.sh              
+        ├── correlation_joinplot.sh                  
+        ├── partial_corr.sh                  
+        ├── train_predict_plot.sh              
+        ├── NN_feature_importances.sh              
+        ├── RF_feature_importances.sh              
+        ├── feature_reduction_all_methods.sh              
+        ├── plots_results.sh              
+        ├── predict_plot_sample.sh              
+        └──README.md               
+        
+        ├── scripts/               
+        │   ├── dataframe_all_data.py
+        │   ├── correlation_joinplot.py
+        │   ├── partial_corr.py
+        │   ├── inverse_model_RF.py
+        │   ├── inverse_model_NN.py
+        │   ├── get_prediction_test.py
+        │   ├── NN_feature_importances.py
+        │   ├── RF_feature_importances.py
+        │   └── feature_reduction_all_methods.py
+        │   └── predict_plot_sample.py
+        
+        
+        ├── plotting/               
+        │   ├── plotting_prediction_target.py
+        │   ├── plot_compare_model_metrics.py
+        │   ├── NN_join_heatmaps.py
+        │   ├── join_heatmaps.py
+        │   └── plot_features_vs_metric.py
+        
+        ├── utils/                  
+        │   └── functions.py
     
-    ├── scripts/               
-    │   ├── dataframe_all_data.py
-    │   ├── correlation_joinplot.py
-    │   ├── partial_corr.py
-    │   ├── inverse_model_RF.py
-    │   ├── inverse_model_NN.py
-    │   ├── get_prediction_test.py
-    │   ├── NN_feature_importances.py
-    │   ├── RF_feature_importances.py
-    │   └── feature_reduction_all_methods.py
-    │   └── predict_plot_sample.py
+        ├── notebooks/               
+        │   └── predict_plot_sample.py
     
+        ├── models/                 
+        │   └── NN_model.pth
     
-    ├── plotting/               
-    │   ├── plotting_prediction_target.py
-    │   ├── plot_compare_model_metrics.py
-    │   ├── NN_join_heatmaps.py
-    │   ├── join_heatmaps.py
-    │   └── plot_features_vs_metric.py
+        
+    modis_prediction/
+        ├── README.md               
+        ├── pred_grid_11_40_compare_methods.sh            
+        ├── global_compare_methods.sh                  
+        ├── mergue-plot.sh                  
+        └── preprocess_level1_level2.sh              
+            ├── preprocess_modis_level1.ncl              
+            └── preprocess_modis_level2.ncl              
+        ├── scripts/               
+        │   ├── obtain_name_files.py
+        │   ├── 11_40_predict_reproject.py
+        │   ├── global_compare_modis_ml_lwp_nd.py
+        │   ├── match_files_modis.py
+        │   ├── mergue_netcdf_plot.py
+        │   ├── methods_obtaine_lwp_nd.py
+        │   └── more_data_global_compare_modis_ml_lwp_nd.py
+        
+        
+        ├── plotting/               
+        │   ├── plotting_prediction_target.py
+        │   ├── plot_compare_model_metrics.py
+        │   ├── NN_join_heatmaps.py
+        │   ├── join_heatmaps.py
+        │   └── plot_features_vs_metric.py
+        
+        ├── utils/                  
+        │   ├── functions_icon_rttov.py
+        │   ├── functions_ml.py
+        │   ├── functions_general.py
+        │   └── functions_modis.py
     
-    ├── utils/                  
-    │   └── functions.py
-
-    ├── notebooks/               
-    │   └── predict_plot_sample.py
-
-    ├── models/                 
-    │   └── NN_model.pth
+        ├── notebooks/               
+        │   └── IN PROCESS
+    
+            
 
 <!-- ├── results/                # Resultados generados por los modelos y gráficas
 │   ├── output.csv
