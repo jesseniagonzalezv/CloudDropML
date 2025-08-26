@@ -1,7 +1,7 @@
 
 # Project Overview
 In this study, we present a machine learning (ML) framework that directly predicts Nd and L from satellite spectral reflectance and radiance data,  thereby circumventing conventional assumptions in retrieval algorithms.
-- This is the code that was used for the development of the paper: DOI: 10.1109/JSTARS.2025.3601981
+- This is the code that was used for the development of the paper: https://ieeexplore.ieee.org/document/11134551  (DOI: 10.1109/JSTARS.2025.3601981)
 
     
 The folder "training_ml_models"  implements both standard statistical methods and machine learning (ML) methods for data analysis and prediction. The pipeline is divided into two main sections.
