@@ -1,0 +1,317 @@
+import os
+import argparse
+import sys
+import pandas as pd
+import numpy as np
+import xarray as xr
+import matplotlib.pyplot as plt
+
+from match_files_modis import read_files_modis, match_level1_level2, obtain_files_match
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+from utils.functions_ml import predict_with_modis_level1
+
+from utils.functions_modis import obtain_df_data_level1_level2, projection_level2_swath_predicted, convert_to_xarray_swath
+
+from plotting.plots import histogram_method_comparison, plot_joint_histogram_conditional, histogram_method_comparison_modis, plot_geospatial_comparison, histogram_plot2d, plot_geospatial_comparison_scatter
+
+from utils.functions_general import save_df_to_netcdf_fold
+
+def main():
+    parser = argparse.ArgumentParser(description='compare methods')
+    arg = parser.add_argument
+    arg('--main_folder_ml_lwp', type=str, default="/work/")
+    arg('--main_folder_ml_nd', type=str, default="/work/")
+    arg('--result_folder', type=str, default="/work/global_data")
+    arg('--folder_path_modis_data', type=str, default="/work/modis_data")
+
+    arg('--all_data_lwp', type=str, default="all_features", help='all_features or most_importances')  
+    arg('--all_data_nd', type=str, default="all_features", help='all_features or most_importances')  
+    arg('--fold_num', type=int, default=0, help='number of the flod')  
+    
+    arg('--type_model', type=str, default="NN")
+    arg('--variables_names', type=str, default="LWP-Ndmax", help='"Re-COT" List of the variables to use.')
+    arg('--num_channels', type=str, default="18_chan", help='"18_chan"  or 17_chan')
+    # arg('--type_data_modis', type=str, default="retrievals_level2", help='retrievals_level2 or level1_level2.')
+
+    args = parser.parse_args()
+    
+    main_folder_ml_lwp = args.main_folder_ml_lwp
+    main_folder_ml_nd = args.main_folder_ml_nd
+    result_folder = args.result_folder
+    folder_path_modis_data = args.folder_path_modis_data
+    all_data_lwp = args.all_data_lwp
+    all_data_nd = args.all_data_nd
+    fold_num = args.fold_num
+    type_model = args.type_model
+    variables_names = args.variables_names
+    num_channels = args.num_channels
+
+    min_value_threshold = 5
+    # max_value_threshold = 2000
+    max_value_threshold = 1000
+    
+    map_boundaries = None
+
+    variables = ["Nd_max", "lwp"]
+    mask_cldph=[1]
+
+    result_folder_hist = f"{result_folder}/nc_lat_lon"
+    os.makedirs(result_folder_hist, exist_ok=True)  
+
+    
+    result_folder_swath = f"{result_folder}/nc_swath"
+    os.makedirs(result_folder_swath, exist_ok=True)  
+
+    # # ----------------------------- ML  parameter ----------------------------------
+    # # -----------------  more data -----------------------
+    # print("using more data =========================================================== ")
+    # main_folder_model_ml_lwp = f"{main_folder_ml_lwp}/more_data_output_main/final_results"
+    # main_folder_model_ml_nd = f"{main_folder_ml_nd}/more_data_output_main/final_results"
+    
+    # path_model_file_lwp=f"{main_folder_model_ml_lwp}/{type_model}/lwp_{all_data_lwp}/{all_data_lwp}_{type_model}_lwp_k_fold_{fold_num}.pth"
+    # path_model_file_nd=f"{main_folder_model_ml_nd}/{type_model}/Nd_max_{all_data_nd}/{all_data_nd}_{type_model}_Nd_max_k_fold_{fold_num}.pth"
+    
+    # path_dataframes_scaler_lwp = f"{main_folder_ml_lwp}/more_data_dataframe_all_data"
+    # path_dataframes_scaler_nd = f"{main_folder_ml_nd}/more_data_dataframe_all_data"
+    
+    # -----------------  only germany data -----------------------
+    # print("using only data germany =========================================================== ")
+    # main_folder_model_ml_lwp = f"{main_folder_ml_lwp}/output_main/final_results"
+    # main_folder_model_ml_nd = f"{main_folder_ml_nd}/output_main/final_results"
+    
+    # path_model_file_lwp=f"{main_folder_model_ml_lwp}/{type_model}/lwp_{all_data_lwp}/{all_data_lwp}_{type_model}_lwp_k_fold_{fold_num}.pth"
+    # path_model_file_nd=f"{main_folder_model_ml_nd}/{type_model}/Nd_max_{all_data_nd}/{all_data_nd}_{type_model}_Nd_max_k_fold_{fold_num}.pth"
+    
+    # path_dataframes_scaler_lwp = f"{main_folder_ml_lwp}/dataframe_all_data"
+    # path_dataframes_scaler_nd = f"{main_folder_ml_nd}/dataframe_all_data"
+
+    
+    # # ---------------- lwp more data ----------------- nd ret  # --------------- VF
+    print(" == lwp more data========================nd retrained================================= ")
+    main_folder_model_ml_lwp = f"{main_folder_ml_lwp}/more_data_output_main/final_results"
+    main_folder_model_ml_nd = f"{main_folder_ml_nd}/output_main/final_results"
+    
+    path_model_file_lwp=f"{main_folder_model_ml_lwp}/{type_model}/lwp_{all_data_lwp}/{all_data_lwp}_{type_model}_lwp_k_fold_{fold_num}.pth"
+    
+    path_model_file_nd=f"{main_folder_model_ml_nd}/{type_model}/Nd_max_{all_data_nd}/{all_data_nd}_{type_model}_Nd_max_k_fold_{fold_num}.pth"
+    
+    path_dataframes_scaler_lwp = f"{main_folder_ml_lwp}/more_data_dataframe_all_data"
+    path_dataframes_scaler_nd = f"{main_folder_ml_nd}/dataframe_all_data"
+
+
+    # ================ obtaine files ====================
+    matched = obtain_files_match(folder_path_modis_data)
+    print(f"==========sizes matched ======== {np.shape(matched)}=====================")
+ 
+    # =============================================================
+    # ---------------------- RETRIEVAL MODIS LEVEL 2 --------------  
+    # =============================================================
+    print(" ========================= Retrievals ==============================")
+    
+    # for i, times_step, path_level1, path_level2 in matched[64:65]:
+    # for i, times_step, path_level1, path_level2 in matched:
+    
+    # Instead of looping all files:
+    i = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
+    x, times_step, path_level1, path_level2 = matched[i]
+    
+    # i=64
+
+    # x, times_step, path_level1, path_level2 = matched[64]  # germany
+    # x, times_step, path_level1, path_level2 = matched[382]  #  2013194
+    # x, times_step, path_level1, path_level2 = matched[490]  #  2014
+    # x, times_step, path_level1, path_level2 = matched[604]  # 2015
+    # x, times_step, path_level1, path_level2 = matched[718]  # 2016 used
+        
+    
+    processed_nc_modis_level1 = path_level1
+    processed_nc_modis_level2_path = path_level2
+    
+    retrievals_ds = xr.open_dataset(processed_nc_modis_level2_path)
+    
+    print(f"======================={processed_nc_modis_level2_path}======================= map_boundaries: {map_boundaries} ================================")
+            
+    retrievals_ds = xr.open_dataset(path_level1)
+    
+    print(f"======================={path_level1}======================= map_boundaries: {map_boundaries} ================================")
+
+    ref_rad_18_chan, all_index, cleaned_index, df_spectral, df_spectral_lwp, df_spectral_nd, filtered_df_modis_retrievals, channel_relate_clouds_lwp, channel_relate_clouds_nd = obtain_df_data_level1_level2(map_boundaries=map_boundaries, 
+                                                           result_folder=result_folder,
+                                                           all_data_lwp=all_data_lwp,
+                                                           all_data_nd=all_data_nd,
+                                                           mask_cldph=mask_cldph, 
+                                                           variable = ["Nd_max", "lwp"], 
+                                                          min_value_threshold=min_value_threshold, 
+                                                           max_value_threshold=max_value_threshold,
+                                                           level1_path=processed_nc_modis_level1, 
+                                                           level2_path=processed_nc_modis_level2_path,
+                                                                                                                                                                           num_channels=num_channels) 
+
+    # ----------- With MODIS channels level1 and mask level2 and ML predic LWP, Nd -----------
+    df_unstandardized_modis_lwp, df_unstandardized_modis_nd= predict_with_modis_level1(cleaned_index=cleaned_index,
+                                                                                       df_spectral=df_spectral,
+
+                                                                                       df_spectral_lwp=df_spectral_lwp,
+                                                                                       df_spectral_nd=df_spectral_nd,
+                                                                                       channel_relate_clouds_lwp=channel_relate_clouds_lwp, 
+                                                                                       channel_relate_clouds_nd=channel_relate_clouds_nd, 
+                                                                                      path_model_file_lwp=path_model_file_lwp, 
+                                                                                      path_model_file_nd=path_model_file_nd, 
+                                                                                      path_dataframes_scaler_lwp=path_dataframes_scaler_lwp, 
+                                                                                      path_dataframes_scaler_nd=path_dataframes_scaler_nd, 
+                                                                                      variables_names=variables_names, 
+                                                                                      fold_num=fold_num)
+                        
+
+    # Combine into a new dataframe
+    filtered_df_modis_ml = pd.DataFrame({
+        'Nd_max': df_unstandardized_modis_nd["Nd_max"],
+        'lwp': df_unstandardized_modis_lwp["lwp"]
+    })
+
+    joint_mask = (
+        (filtered_df_modis_ml[variables] >= min_value_threshold) &
+        (filtered_df_modis_ml[variables] <= max_value_threshold) &
+        (filtered_df_modis_retrievals[variables] >= min_value_threshold) &
+        (filtered_df_modis_retrievals[variables] <= max_value_threshold)
+    ).all(axis=1)  
+    
+    # Apply the joint mask to both DataFrames
+    filtered_df_modis_retrievals = filtered_df_modis_retrievals[joint_mask]
+    filtered_df_modis_ml = filtered_df_modis_ml[joint_mask]
+
+    
+    prediction_level1_ds = convert_to_xarray_swath(df=filtered_df_modis_ml, 
+                                                   all_index=all_index, 
+                                                   ref_rad_18_chan=ref_rad_18_chan)
+    
+    prediction_level2_ds = convert_to_xarray_swath(df=filtered_df_modis_retrievals, 
+                                                   all_index=all_index, 
+                                                   ref_rad_18_chan=ref_rad_18_chan)
+
+
+
+    map_boundaries = [50.008, 54.5, 4.5, 14.5] 
+
+
+    
+    # index = times_step.split('.')[1]
+    times_step = times_step.replace('.', '_')
+    index = times_step
+
+
+    prediction_level1_ds = convert_to_xarray_swath(df=filtered_df_modis_ml, 
+                                                   all_index=all_index, 
+                                                   ref_rad_18_chan=ref_rad_18_chan)
+    
+    prediction_level2_ds = convert_to_xarray_swath(df=filtered_df_modis_retrievals, 
+                                                   all_index=all_index, 
+                                                   ref_rad_18_chan=ref_rad_18_chan)
+
+
+    filename = f'{result_folder_swath}/prediction_level1_ds_{index}_fold_{fold_num}.nc'
+
+    if os.path.exists(filename):
+        os.remove(filename)
+        print(f"Previous file {filename} deleted.")
+    
+    print(f"Saving dataframe to {filename}")
+    prediction_level1_ds.to_netcdf(filename)
+    
+    filename = f'{result_folder_swath}/retrievals_level2_ds_{index}_fold_{fold_num}.nc'
+
+    if os.path.exists(filename):
+        os.remove(filename)
+        print(f"Previous file {filename} deleted.")
+    
+    print(f"Saving dataframe to {filename}")
+    prediction_level2_ds.to_netcdf(filename)
+
+    
+
+    projected_pred_level1_ds = projection_level2_swath_predicted(masked_subset_level_ds=prediction_level1_ds,
+                                  map_boundaries=map_boundaries)
+
+    projected_level2_ds = projection_level2_swath_predicted(masked_subset_level_ds=prediction_level2_ds,
+                                  map_boundaries=map_boundaries)
+
+
+
+    for variable_target in variables:
+        plot_geospatial_comparison(variable_target=variable_target,
+            datasets=[projected_level2_ds, projected_pred_level1_ds],
+            titles=["MODIS retrievals", "MODIS spectral + ML"],
+            vmin=1e0,
+            vmax=1e3,
+                                   result_folder=result_folder,
+                                   index=index
+        
+        )
+        fig, axs = plt.subplots(constrained_layout=True, nrows=2, ncols=1, figsize=(4.3, 16 / 4 * 2))
+         # metrics =['R2', 'RMSE']
+        metrics =['mean']
+        histogram_plot2d(target_values=projected_level2_ds[variable_target].values.flatten(),
+                         prediction_values=projected_pred_level1_ds[variable_target].values.flatten(),
+                     metrics=metrics,
+                     name_model="NN",
+                     axes=axs,
+                     plt=plt,
+                     variable_target=variable_target,
+                     # title_units=variable_target_units,
+                     log_plots="False")
+        name_file = f'{result_folder}/density_2d_{variable_target}_hist_{index}.png'
+        fig.savefig(name_file)
+        plt.close()
+
+
+    
+    # # ======================== 
+    filtered_df_modis_ml = projected_pred_level1_ds.to_dataframe().reset_index().dropna() 
+    filtered_df_modis_retrievals = projected_level2_ds.to_dataframe().reset_index().dropna() 
+
+    for variable_target in variables:
+        plot_geospatial_comparison_scatter(
+            variable_target=variable_target,
+            dataframes=[filtered_df_modis_retrievals, filtered_df_modis_ml],
+            result_folder=result_folder,
+            titles=["MODIS retrievals", "MODIS spectral + ML"],
+            vmin=5,
+            vmax=1000,
+            index=index,
+        )
+
+    
+    save_df_to_netcdf_fold(df=filtered_df_modis_ml,
+                            fold_num=fold_num,
+                            prefix=f'df_level1_ml_predictions_{index}', 
+                            path_output=result_folder_hist
+    )
+
+
+    save_df_to_netcdf_fold(df=filtered_df_modis_retrievals, 
+                               fold_num=fold_num,
+                               prefix=f'df_level2_modis_{index}', 
+                               path_output=result_folder_hist)
+    
+
+    filtered_df_modis_retrievals = filtered_df_modis_retrievals.rename(columns={'Nd_max': r'$N_{d,\ MODIS L2}$', 
+                                                 'lwp': r'LWP_{MODIS L2}'}, inplace=False)
+    filtered_df_modis_ml = filtered_df_modis_ml.rename(columns={'Nd_max': r'$N_{d,\ MODIS L1}$', 
+                                             'lwp': r'LWP_{MODIS L1}'}, inplace=False)
+    
+    histogram_method_comparison_modis(df_modis_retrievals=filtered_df_modis_retrievals, 
+                                df_modis_ml=filtered_df_modis_ml, 
+                                clip_min=5, 
+                                clip_maximun=1000,
+                                result_folder=result_folder,
+                                index=index)
+    
+    
+
+
+if __name__ == '__main__':
+    main()
+
